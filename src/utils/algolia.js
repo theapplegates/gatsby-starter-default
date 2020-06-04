@@ -1,12 +1,35 @@
-const queryTemplate = (filters = ``, fields = ``) => `{
-  allMdx(filter: {${filters}}) {
+const pageQuery = `{
+  pages: allMarkdownRemark(
+    filter: {
+      fileAbsolutePath: { regex: "/pages/" },
+      frontmatter: {purpose: {eq: "page"}}
+    }
+  ) {
     edges {
       node {
         objectID: id
         frontmatter {
           title
           slug
-          ${fields}
+        }
+        excerpt(pruneLength: 5000)
+      }
+    }
+  }
+}`
+
+const postQuery = `{
+  posts: allMarkdownRemark(
+    filter: { fileAbsolutePath: { regex: "/posts/" } }
+  ) {
+    edges {
+      node {
+        objectID: id
+        frontmatter {
+          title
+          slug
+          date(formatString: "MMM D, YYYY")
+          tags
         }
         excerpt(pruneLength: 5000)
       }
@@ -15,23 +38,22 @@ const queryTemplate = (filters = ``, fields = ``) => `{
 }`
 
 const flatten = arr =>
-  arr.map(({ node: { frontmatter, ...rest } }) => ({ ...frontmatter, ...rest }))
-
+  arr.map(({ node: { frontmatter, ...rest } }) => ({
+    ...frontmatter,
+    ...rest,
+  }))
 const settings = { attributesToSnippet: [`excerpt:20`] }
 
 const queries = [
   {
-    query: queryTemplate(`frontmatter: {purpose: {eq: "page"}}`),
-    transformer: res => flatten(res.data.allMdx.edges),
+    query: pageQuery,
+    transformer: ({ data }) => flatten(data.pages.edges),
     indexName: `Pages`,
     settings,
   },
   {
-    query: queryTemplate(
-      `fileAbsolutePath: {regex: "/posts/"}`,
-      `tags date(formatString: "MMM D, YYYY")`
-    ),
-    transformer: res => flatten(res.data.allMdx.edges),
+    query: postQuery,
+    transformer: ({ data }) => flatten(data.posts.edges),
     indexName: `Posts`,
     settings,
   },
